@@ -620,10 +620,7 @@ GLuint reflecttex = 0, refracttex = 0;
 int reflectlastsize = 0;
 
 VARP(reflectsize, 6, 8, 10);
-// FIXME The bug: HUD (equipment icons etc.) reflects on the water surface.
-// Therefore previous default value of reflectlip was changed from 3 to 1, in order to minimalize this negative effect.
-// Restore it, when the bug will be fixed.
-VAR(reflectclip, 0, 1, 100);
+VAR(reflectclip, 0, 3, 100);
 VARP(waterreflect, 0, 1, 1);
 VARP(waterrefract, 0, 0, 1);
 VAR(reflectscissor, 0, 1, 1);
@@ -658,16 +655,19 @@ void drawreflection(float hf, int w, int h, float changelod, bool refract)
 
     extern float wsx1, wsx2, wsy1, wsy2;
     int sx = 0, sy = 0, sw = size, sh = size;
-    bool scissor = reflectscissor && (wsx1 > -1 || wsy1 > -1 || wsx1 < 1 || wsy1 < 1);
-    if(scissor)
+    if(reflectscissor && (wsx1 > -1 || wsy1 > -1 || wsx1 < 1 || wsy1 < 1))
     {
         sx = int(floor((wsx1+1)*0.5f*size));
         sy = int(floor((wsy1+1)*0.5f*size));
         sw = int(ceil((wsx2+1)*0.5f*size)) - sx;
         sh = int(ceil((wsy2+1)*0.5f*size)) - sy;
-        glScissor(sx, sy, sw, sh);
-        glEnable(GL_SCISSOR_TEST);
     }
+    glScissor(sx, sy, sw, sh);
+    glEnable(GL_SCISSOR_TEST);
+
+    if(!refract) glCullFace(GL_BACK);
+    glViewport(0, 0, size, size);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
     resetcubes();
 
@@ -675,10 +675,6 @@ void drawreflection(float hf, int w, int h, float changelod, bool refract)
             (int)camera1->yaw, (refract ? 1 : -1)*(int)camera1->pitch, dynfov(), fovy, size, size);
 
     setupstrips();
-
-    if(!refract) glCullFace(GL_BACK);
-    glViewport(0, 0, size, size);
-    glClear(GL_DEPTH_BUFFER_BIT);
 
     glEnable(GL_TEXTURE_2D);
 
@@ -752,7 +748,7 @@ void drawreflection(float hf, int w, int h, float changelod, bool refract)
     if(!refract) glCullFace(GL_FRONT);
     glViewport(0, 0, w, h);
 
-    if(scissor) glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_SCISSOR_TEST);
 
     glBindTexture(GL_TEXTURE_2D, refract ? refracttex : reflecttex);
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, sx, sy, sx, sy, sw, sh);
